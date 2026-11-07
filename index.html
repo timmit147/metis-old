@@ -1,0 +1,329 @@
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090d16">
+<title>Pocket AI – Downloads</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #090d16;
+  --panel: #111827;
+  --border: #253247;
+  --muted: #94a3b8;
+  --text: #f8fafc;
+  --accent: #38bdf8;
+  --green: #34d399;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+}
+main {
+  max-width: 850px;
+  margin: auto;
+  padding: 48px 20px;
+}
+header { margin-bottom: 36px; }
+.logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #12334a;
+  display: grid;
+  place-items: center;
+  font-size: 27px;
+  margin-bottom: 20px;
+}
+h1 { font-size: 34px; margin: 0 0 8px; }
+h2 { font-size: 20px; }
+p { color: var(--muted); line-height: 1.6; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  margin-bottom: 18px;
+}
+.topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.badge {
+  background: #064e3b;
+  color: #a7f3d0;
+  border-radius: 30px;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.version { font-size: 26px; font-weight: 700; }
+.meta { font-size: 13px; color: var(--muted); }
+.button {
+  display: inline-block;
+  text-decoration: none;
+  background: var(--accent);
+  color: #082032;
+  font-weight: 750;
+  padding: 13px 20px;
+  border-radius: 11px;
+  margin-top: 18px;
+}
+.button:hover { filter: brightness(1.1); }
+.secondary {
+  background: #243449;
+  color: white;
+  padding: 10px 15px;
+}
+.release {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--border);
+}
+.release:last-child { border-bottom: 0; }
+.release-name { font-weight: 650; }
+.status { color: var(--green); font-size: 13px; }
+#older { margin-top: 28px; }
+#message { color: var(--muted); }
+footer {
+  text-align: center;
+  margin-top: 40px;
+  font-size: 13px;
+}
+a { color: var(--accent); }
+@media(max-width: 550px) {
+  main { padding: 30px 15px; }
+  h1 { font-size: 29px; }
+  .release { align-items: flex-start; }
+  .release .button { margin-top: 0; }
+  .panel { padding: 19px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo">✦</div>
+    <h1>Pocket AI</h1>
+    <p>
+      Your personal offline AI assistant.<br>
+      Download the latest version for Android.
+    </p>
+    <div class="status" id="buildStatus">● Checking build status...</div>
+  </header>
+
+  <section class="panel">
+    <div class="topline">
+      <strong>Latest version</strong>
+      <span class="badge">LATEST</span>
+    </div>
+    <div id="latest">
+      <div class="version">Loading...</div>
+      <p>Retrieving the latest APK from GitHub.</p>
+    </div>
+  </section>
+
+  <section id="older" class="panel">
+    <h2>Previous versions</h2>
+    <div id="history">
+      <p>Loading version history...</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      Pocket AI · Built with GitHub Actions<br>
+      <a href="https://github.com/timmit147/metis">
+        View source code on GitHub
+      </a>
+      ·
+      <a href="https://github.com/timmit147/metis/actions">
+        Build history
+      </a>
+    </p>
+    <p id="updated"></p>
+  </footer>
+</main>
+
+<script>
+const API = "https://api.github.com/repos/timmit147/metis";
+
+function date(value) {
+  if (!value) return "Unknown date";
+  return new Intl.DateTimeFormat("nl-NL", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
+}
+
+function createButton(url, label = "Download APK") {
+  const a = document.createElement("a");
+  a.className = "button";
+  a.href = url;
+  a.textContent = "↓ " + label;
+  a.setAttribute("download", "");
+  return a;
+}
+
+function renderLatest(release) {
+  const container = document.getElementById("latest");
+  const apk = release.assets.find(a =>
+    a.name.toLowerCase().endsWith(".apk")
+  );
+
+  container.replaceChildren();
+
+  const version = document.createElement("div");
+  version.className = "version";
+  version.textContent = release.name || release.tag_name;
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent =
+    release.tag_name + " · " + date(release.published_at);
+
+  container.append(version, meta);
+
+  if (apk) {
+    const info = document.createElement("p");
+    info.textContent =
+      apk.name + " · " + (apk.size / 1024 / 1024).toFixed(1) + " MB";
+    container.append(info);
+    container.append(createButton(apk.browser_download_url));
+  } else {
+    const info = document.createElement("p");
+    info.textContent = "No APK attached to this release.";
+    container.append(info);
+  }
+}
+
+function renderHistory(releases) {
+  const container = document.getElementById("history");
+  container.replaceChildren();
+
+  if (!releases.length) {
+    container.textContent = "No older versions available yet.";
+    return;
+  }
+
+  releases.forEach(release => {
+    const apk = release.assets.find(a =>
+      a.name.toLowerCase().endsWith(".apk")
+    );
+
+    if (!apk) return;
+
+    const row = document.createElement("div");
+    row.className = "release";
+
+    const info = document.createElement("div");
+
+    const name = document.createElement("div");
+    name.className = "release-name";
+    name.textContent = release.name || release.tag_name;
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent =
+      release.tag_name + " · " + date(release.published_at);
+
+    info.append(name, meta);
+    row.append(info, createButton(apk.browser_download_url, "Download"));
+    container.append(row);
+  });
+}
+
+async function loadReleases() {
+  const response = await fetch(
+    API + "/releases?per_page=50",
+    { cache: "no-store" }
+  );
+
+  if (!response.ok) {
+    throw new Error("GitHub Releases unavailable (" + response.status + ")");
+  }
+
+  const releases = await response.json();
+
+  // Ignore draft releases and sort newest first.
+  const published = releases
+    .filter(r => !r.draft)
+    .sort((a, b) =>
+      new Date(b.published_at) - new Date(a.published_at)
+    );
+
+  const withApk = published.filter(r =>
+    r.assets.some(a => a.name.toLowerCase().endsWith(".apk"))
+  );
+
+  if (!withApk.length) {
+    document.getElementById("latest").textContent =
+      "No APK has been published yet. The first successful build will appear here.";
+    document.getElementById("history").textContent =
+      "No previous versions yet.";
+    return;
+  }
+
+  renderLatest(withApk[0]);
+  renderHistory(withApk.slice(1));
+
+  document.getElementById("updated").textContent =
+    "Last checked: " + date(new Date().toISOString());
+}
+
+async function loadBuildStatus() {
+  try {
+    const response = await fetch(
+      API + "/actions/workflows/build-apk.yml/runs?per_page=1",
+      { cache: "no-store" }
+    );
+
+    if (!response.ok) return;
+
+    const data = await response.json();
+    const run = data.workflow_runs?.[0];
+
+    if (!run) return;
+
+    const status = document.getElementById("buildStatus");
+
+    if (run.status === "in_progress" || run.status === "queued") {
+      status.textContent = "● New build is running...";
+      status.style.color = "#fbbf24";
+    } else if (run.conclusion === "success") {
+      status.textContent = "● Latest build successful";
+    } else {
+      status.textContent = "● Latest build failed";
+      status.style.color = "#fb7185";
+    }
+  } catch (error) {
+    console.warn("Could not load build status", error);
+  }
+}
+
+async function refresh() {
+  try {
+    await Promise.all([loadReleases(), loadBuildStatus()]);
+  } catch (error) {
+    document.getElementById("latest").textContent =
+      "Could not load versions. Please try again later.";
+    console.error(error);
+  }
+}
+
+refresh();
+setInterval(refresh, 60000);
+</script>
+</body>
+</html>
