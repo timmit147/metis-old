@@ -1,3 +1,4 @@
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,24 +13,12 @@ android {
         applicationId = "com.example.pocketai"
         minSdk = 29
         targetSdk = 35
+
         versionCode = 3
         versionName = "0.3.0"
 
         ndk {
             abiFilters += "arm64-v8a"
-        }
-
-        externalNativeBuild {
-            cmake {
-                cppFlags += "-std=c++17"
-            }
-        }
-    }
-
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
         }
     }
 
@@ -49,19 +38,18 @@ android {
 
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.09.00"))
+
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 
-    // Required for background model downloads and notifications
+    // Background model downloads and notifications
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
-    // Offline image recognition (model is bundled in the APK, no internet needed)
-    implementation("com.google.mlkit:image-labeling:17.0.9")
-
-    // Existing local AI inference library
+    // Local text AI
     implementation("dev.ffmpegkit-maintained:llama-android:0.1.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
