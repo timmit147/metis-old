@@ -18,11 +18,6 @@ data class ImageLabelResult(
     val confidence: Float
 )
 
-/**
- * Fully offline image recognition.
- * Uses the ML Kit image labeling model that is bundled inside the APK,
- * so no download and no internet connection are needed.
- */
 object ImageRecognizer {
 
     suspend fun recognize(
@@ -30,6 +25,13 @@ object ImageRecognizer {
         minConfidence: Float = 0.5f,
         maxLabels: Int = 8
     ): List<ImageLabelResult> {
+
+        // Temporarily disable image recognition.
+        // All original recognition code is preserved below.
+        if (!BuildConfig.VISION_ENABLED) {
+            return emptyList()
+        }
+
         val (bitmap, rotation) = withContext(Dispatchers.IO) {
             loadBitmap(imagePath)
         }
@@ -50,7 +52,12 @@ object ImageRecognizer {
                             labels
                                 .sortedByDescending { it.confidence }
                                 .take(maxLabels)
-                                .map { ImageLabelResult(it.text, it.confidence) }
+                                .map {
+                                    ImageLabelResult(
+                                        it.text,
+                                        it.confidence
+                                    )
+                                }
                         )
                     }
                     .addOnFailureListener { error ->
@@ -63,8 +70,11 @@ object ImageRecognizer {
         }
     }
 
-    /** Text shown directly to the user (also used when the chat model is not installed). */
     fun describe(labels: List<ImageLabelResult>): String {
+        if (!BuildConfig.VISION_ENABLED) {
+            return "Image recognition is temporarily disabled."
+        }
+
         if (labels.isEmpty()) {
             return "I could not recognise anything in this image with enough confidence."
         }
@@ -75,12 +85,19 @@ object ImageRecognizer {
             }
     }
 
-    /** Prompt for the offline chat model. */
     fun buildPrompt(
         userText: String,
         labels: List<ImageLabelResult>
     ): String {
-        val question = userText.ifBlank { "What is in this image?" }
+        if (!BuildConfig.VISION_ENABLED) {
+            return "Image recognition is temporarily disabled. " +
+                "The AI cannot see the image. Do not invent image details. " +
+                "User question: $userText"
+        }
+
+        val question = userText.ifBlank {
+            "What is in this image?"
+        }
 
         val found = if (labels.isEmpty()) {
             "The image classifier could not recognise anything with enough confidence."
@@ -98,7 +115,10 @@ object ImageRecognizer {
     }
 
     private fun loadBitmap(path: String): Pair<Bitmap, Int> {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        val bounds = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+
         BitmapFactory.decodeFile(path, bounds)
 
         require(bounds.outWidth > 0 && bounds.outHeight > 0) {
@@ -106,6 +126,7 @@ object ImageRecognizer {
         }
 
         var sample = 1
+
         while (
             bounds.outWidth / sample > 1280 ||
             bounds.outHeight / sample > 1280
@@ -115,7 +136,9 @@ object ImageRecognizer {
 
         val bitmap = BitmapFactory.decodeFile(
             path,
-            BitmapFactory.Options().apply { inSampleSize = sample }
+            BitmapFactory.Options().apply {
+                inSampleSize = sample
+            }
         ) ?: error("Cannot decode image.")
 
         val rotation = try {
