@@ -31,6 +31,9 @@ jobs:
           GH_USER: timmit147
           # Komma-gescheiden lijst. Leeg = alles meenemen (ook metis).
           EXCLUDE_REPOS: ""
+          # Van deze repos wordt de broncode als 1 tekstbestand gepubliceerd:
+          # https://timmit147.github.io/metis/<repo>.txt
+          CONTENT_REPOS: "metis"
         run: |
           mkdir -p public
 
@@ -41,6 +44,7 @@ jobs:
           user = os.environ["GH_USER"]
           token = os.environ["GH_TOKEN"]
           excluded = {r.strip() for r in os.environ.get("EXCLUDE_REPOS", "").split(",") if r.strip()}
+          content_repos = {r.strip() for r in os.environ.get("CONTENT_REPOS", "").split(",") if r.strip()}
 
           headers = {
               "Authorization": f"Bearer {token}",
@@ -52,6 +56,11 @@ jobs:
               req = urllib.request.Request(url, headers=headers)
               with urllib.request.urlopen(req) as r:
                   return json.loads(r.read())
+
+          def get_text(url):
+              req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+              with urllib.request.urlopen(req) as r:
+                  return r.read().decode("utf-8", errors="replace")
 
           repos = []
           page = 1
@@ -66,7 +75,13 @@ jobs:
               page += 1
 
           BLOCKED_NAMES = {".env", ".env.local", "secrets.json", "credentials.json"}
-          BLOCKED_SUFFIXES = (".pem", ".key", ".p12", ".pfx")
+          BLOCKED_SUFFIXES = (".pem", ".key", ".p12", ".pfx", ".jks", ".keystore")
+          TEXT_SUFFIXES = (
+              ".kt", ".kts", ".java", ".xml", ".cpp", ".c", ".h", ".txt",
+              ".yml", ".yaml", ".gradle", ".properties", ".json", ".md",
+              ".html", ".css", ".js", ".pro", ".toml", ".sql", ".php",
+          )
+          MAX_CONTENT_BYTES = 1_500_000
 
           index = {"user": user, "repositories": []}
 
@@ -96,8 +111,13 @@ jobs:
                       if size > 100000:
                           continue
 
+                      parts = path.split("/")
+
+                      if "node_modules" in parts:
+                          continue
+
                       if any(part.startswith(".") and part != ".github"
-                             for part in path.split("/")):
+                             for part in parts):
                           continue
 
                       fname = Path(path).name.lower()
@@ -122,6 +142,29 @@ jobs:
                       "truncated": tree.get("truncated", False),
                       "files": files,
                   })
+
+                  # Broncode van geselecteerde repos als 1 leesbaar tekstbestand
+                  if name in content_repos:
+                      out = []
+                      total = 0
+                      for f in files:
+                          if not f["path"].lower().endswith(TEXT_SUFFIXES):
+                              continue
+                          try:
+                              text = get_text(f["url"])
+                          except Exception as e:
+                              text = f"[could not fetch: {e}]"
+                          chunk = f"\n\n===== FILE: {f['path']} =====\n{text}"
+                          total += len(chunk.encode("utf-8"))
+                          if total > MAX_CONTENT_BYTES:
+                              out.append("\n\n[TRUNCATED: size limit reached]")
+                              break
+                          out.append(chunk)
+                      Path(f"public/{name}.txt").write_text(
+                          f"Source of {user}/{name} ({branch})" + "".join(out),
+                          encoding="utf-8",
+                      )
+                      print(f"Wrote public/{name}.txt ({total} bytes)")
 
               except Exception as e:
                   print(f"Skipping {name}: {e}")
